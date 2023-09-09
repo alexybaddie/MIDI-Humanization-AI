@@ -1,12 +1,17 @@
-import mido
+import pretty_midi
 import numpy as np
 import tensorflow as tf
 from data_processing import extract_features
 
 def convert(midi_data):
-    new_midi = mido.MidiFile(ticks_per_beat=midi_data.ticks_per_beat)
-    single_track = mido.MidiTrack()
-    new_midi.tracks.append(single_track)
+    new_midi = pretty_midi.PrettyMIDI(resolution=midi_data.resolution, initial_tempo=midi_data.get_tempo_changes()[1][0])
+    single_track = pretty_midi.Instrument(program=0)
+    
+    # Getting the original tempo
+    original_tempo = midi_data.estimate_tempo()
+    
+    # Calculating the time-stretching factor
+    time_stretching_factor = original_tempo / 120.0
     
     # List to hold the events with their time offsets
     events = []
@@ -15,86 +20,78 @@ def convert(midi_data):
     tempo_changes = [(0, 500000)]  # Default tempo (500000 microseconds per beat)
     
     # Extract events and tempo changes
-    for track in midi_data.tracks:
+    for track in midi_data.instruments:
         time_offset = 0
-        for msg in track:
-            time_offset += msg.time
-            if msg.is_meta and msg.type == "set_tempo":
-                tempo_changes.append((time_offset, msg.tempo))
-            if not msg.is_meta:
-                events.append((time_offset, msg.copy(time=0)))
+        for note in track.notes:
+            start_time = note.start
+            end_time = note.end
+            velocity = note.velocity
+            pitch = note.pitch
+            events.append((start_time, pretty_midi.Note(start=start_time, end=end_time, pitch=pitch, velocity=velocity)))
     
-    # Sort events by their time offsets
+    # Sort events by their start times
     events.sort(key=lambda x: x[0])
     
-    # Process events by adjusting the time based on tempo changes
-    last_time_offset = 0
-    current_tempo_idx = 0
     for event in events:
-        while current_tempo_idx + 1 < len(tempo_changes) and event[0] >= tempo_changes[current_tempo_idx + 1][0]:
-            current_tempo_idx += 1
-        current_tempo = tempo_changes[current_tempo_idx][1]
-        
-        # Adjust the time of the event based on the current tempo
-        ticks_per_beat = midi_data.ticks_per_beat
-        delta_time_in_seconds = mido.tick2second(event[0] - last_time_offset, ticks_per_beat, current_tempo)
-        delta_ticks = mido.second2tick(delta_time_in_seconds, ticks_per_beat, 500000)  # Convert back using default tempo
-        msg = event[1]
-        msg.time = int(round(delta_ticks))
-        single_track.append(msg)
-        last_time_offset = event[0]
+        single_track.notes.append(event[1])
     
-    return new_midi
+    # Create a new PrettyMIDI object with a tempo of 120 BPM
+    new_midi_120 = pretty_midi.PrettyMIDI(initial_tempo=120.0)
+    
+    # Add the time-stretched notes to the new PrettyMIDI object
+    new_single_track = pretty_midi.Instrument(program=0)
+    new_single_track.notes = single_track.notes
+    new_midi_120.instruments.append(new_single_track)
+    
+    return new_midi_120
+    
+   # new_midi.instruments.append(single_track)
+    
+  #  return new_midi
 
-def humanize_midi(midi_file_path, model, n=5, max_duration=1.0, velocity_threshold=0.1, duration_threshold=0.1):
+
+def humanize_midi(midi_file_path, model, n=5):
     # Load the MIDI data
-    midi_data = mido.MidiFile(midi_file_path)
+    original_midi = pretty_midi.PrettyMIDI(midi_file_path)
+    
     # Convert the MIDI data to Type 0
-    midi_data = convert(midi_data)
-
+    original_midi_data = convert(original_midi)
+    midi_data = convert(original_midi)
     
     # Check if there are any instruments in the MIDI data
-    if not midi_data.tracks:
+    if not midi_data.instruments:
         return []
     
     # Extract and humanize the notes
-    notes = []
-    active_notes = {}
-    current_time = 0
-    for msg in midi_data.tracks[0]:
-        current_time += msg.time
-        if msg.type == 'note_on' and msg.velocity > 0:
-            active_notes[msg.note] = (msg.note, msg.velocity, current_time)
-        elif msg.type == 'note_off' or (msg.type == 'note_on' and msg.velocity == 0):
-            start_note = active_notes.pop(msg.note, None)
-            if start_note:
-                duration = current_time - start_note[2]
-                notes.append((*start_note, duration))
+    original_notes = original_midi_data.instruments[0].notes
+    notes = midi_data.instruments[0].notes
 
-    for i in range(len(notes) - n):
-        input_sequence = np.array([[(note[0], note[1], note[3]) for note in notes[i:i+n]]])
+    min_length = min(len(notes), len(original_notes))  # Find the minimum length
+
+    for i in range(min_length - n - 1):  # Use the minimum length to set the loop range
+        input_sequence = np.array([[(note.pitch, note.velocity, note.end - note.start) for note in notes[i:i+n]]])
         predicted_values = model.predict(input_sequence)
-        
-        # Normalize predicted values
-        predicted_duration = min(max_duration, max(0, predicted_values[0][0]))
-        predicted_velocity = min(127, max(0, int(predicted_values[0][1])))
-        
-        # Apply changes only if they exceed the threshold
-        if abs(predicted_velocity - notes[i+n][1]) > velocity_threshold:
-            notes[i+n] = (notes[i+n][0], predicted_velocity, notes[i+n][2], notes[i+n][3])
-        if abs(predicted_duration - notes[i+n][3]) > duration_threshold:
-            notes[i+n] = (notes[i+n][0], notes[i+n][1], notes[i+n][2], predicted_duration)
-            
-        # Replace the original note with the modified note in the MIDI data
-        for idx, msg in enumerate(midi_data.tracks[0]):
-            if msg.type == 'note_on' and msg.note == notes[i+n][0] and msg.time == notes[i+n][2]:
-                midi_data.tracks[0][idx] = mido.Message('note_on', note=notes[i+n][0], velocity=notes[i+n][1], time=notes[i+n][2])
-                break
+        next_note = notes[i+n]
 
+        # Calculate the original duration and the predicted duration
+        original_end_time = original_notes[i+n].end
+        original_duration = original_end_time - next_note.start
+        predicted_duration = predicted_values[0][0] * 1
+
+        # Adjust the note's end time based on the predicted duration, but limit the adjustment 
+        # to prevent the duration from becoming too short or too long compared to the original duration
+        new_duration = max(min(predicted_duration, original_duration * 1.75), original_duration * 0.25)
+        next_note.end = next_note.start + new_duration
+
+        next_note.velocity = int(predicted_values[0][1])
+
+    # ... (the ending part of the function remains the same)
     return midi_data
+
 
 if __name__ == "__main__":
     model = tf.keras.models.load_model("humanize_model.h5")
-    midi_file_path = "./mid/midi.mid"  # Replace with your actual input MIDI file path
+    with open("midi_file_path.txt", "r") as f:
+        midi_file_path = f.readline().strip() # Replace with your actual input MIDI file path
     humanized_data = humanize_midi(midi_file_path, model)
-    humanized_data.save("humanized_output.mid")
+    humanized_data.write("humanized_output.mid")

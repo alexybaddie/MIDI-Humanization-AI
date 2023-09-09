@@ -9,9 +9,11 @@ def build_lstm_model(input_shape=(5, 3)):
     model = Sequential([
         tf.keras.layers.InputLayer(input_shape=input_shape),
         tf.keras.layers.LSTM(128, return_sequences=True),
+        tf.keras.layers.Dropout(0.2), # Adding dropout layer
         tf.keras.layers.LSTM(64),
+        tf.keras.layers.BatchNormalization(), # Adding batch normalization layer
         Dense(32, activation='relu'),
-        Dense(2)  # Output two values: duration and velocity
+        Dense(2) # Output two values: duration and velocity
     ])
     
     model.compile(optimizer='adam', loss='mse')
@@ -20,7 +22,7 @@ def build_lstm_model(input_shape=(5, 3)):
 if __name__ == "__main__":
     BASE_DIR = "./maestro-v3.0.0/"  # Relative directory where the MAESTRO dataset is stored
     
-    midi_paths = extract_midi_paths_from_metadata()
+    midi_paths = extract_midi_paths_from_metadata()[:1276]
     midi_files = [BASE_DIR + path for path in midi_paths]  # Convert relative paths to full local paths
 
     # Extract sequences and corresponding next note's attributes from the dataset
@@ -34,6 +36,5 @@ if __name__ == "__main__":
     # Train the model
     model = build_lstm_model()
     model.fit(features, labels, epochs=20, batch_size=32, verbose=1)
-    
-    print("Saving trained model...")
+
     model.save("humanize_model.h5")  # Save the trained model
