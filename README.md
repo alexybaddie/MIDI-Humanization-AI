@@ -48,3 +48,5 @@ PREDICTION_MULTIPLIER = 1.0
 DURATION_LIMIT_UPPER = 1.75
 DURATION_LIMIT_LOWER = 0.25
 ```
+
+3. I wouldn't recommend you go above `2.0` or anything below `0.25`, because you could get some weird results.
