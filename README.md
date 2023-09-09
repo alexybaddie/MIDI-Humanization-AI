@@ -38,9 +38,13 @@ Install dependencies
 
 # Advanced
 
-If you're not happy with your results, you can proceed to some more fine-tuning adjustments.
-
-## How?
+### If you're not happy with your results, you can proceed to some more fine-tuning adjustments.
 
 1. Open up `humanize.py` in a text editor
-2. 
+2. Play around with these values at the very top of the code.
+
+```python
+PREDICTION_MULTIPLIER = 1.0
+DURATION_LIMIT_UPPER = 1.75
+DURATION_LIMIT_LOWER = 0.25
+```
