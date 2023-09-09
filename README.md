@@ -1,4 +1,4 @@
-# MIDI-Humanization-AI
+# MIDI Humanization AI
 AI to humanize MIDI velocities and note length
 
 ## Setup the Environment
