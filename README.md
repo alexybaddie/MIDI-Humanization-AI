@@ -20,7 +20,7 @@ Go to the project directory
 Install dependencies
 
 ```bash
-  pip install tensorflow numpy mido
+  pip install -r requirements.txt
 ```
 
 Start the humanization process
