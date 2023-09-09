@@ -3,6 +3,10 @@ import numpy as np
 import tensorflow as tf
 from data_processing import extract_features
 
+PREDICTION_MULTIPLIER = 1.0
+DURATION_LIMIT_UPPER = 1.75
+DURATION_LIMIT_LOWER = 0.25
+
 def convert(midi_data):
     new_midi = pretty_midi.PrettyMIDI(resolution=midi_data.resolution, initial_tempo=midi_data.get_tempo_changes()[1][0])
     single_track = pretty_midi.Instrument(program=0)
@@ -50,7 +54,7 @@ def convert(midi_data):
   #  return new_midi
 
 
-def humanize_midi(midi_file_path, model, n=5):
+def humanize_midi(midi_file_path, model, n=32):
     # Load the MIDI data
     original_midi = pretty_midi.PrettyMIDI(midi_file_path)
     
@@ -76,11 +80,11 @@ def humanize_midi(midi_file_path, model, n=5):
         # Calculate the original duration and the predicted duration
         original_end_time = original_notes[i+n].end
         original_duration = original_end_time - next_note.start
-        predicted_duration = predicted_values[0][0] * 1
+        predicted_duration = predicted_values[0][0] * PREDICTION_MULTIPLIER
 
         # Adjust the note's end time based on the predicted duration, but limit the adjustment 
         # to prevent the duration from becoming too short or too long compared to the original duration
-        new_duration = max(min(predicted_duration, original_duration * 1.75), original_duration * 0.25)
+        new_duration = max(min(predicted_duration, original_duration * DURATION_LIMIT_UPPER), original_duration * DURATION_LIMIT_LOWER)
         next_note.end = next_note.start + new_duration
 
         next_note.velocity = int(predicted_values[0][1])
