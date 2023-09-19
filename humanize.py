@@ -101,7 +101,7 @@ def humanize_midi(midi_file_path, model, n=32):
 
 
 if __name__ == "__main__":
-    model = tf.keras.models.load_model("humanize_model.h5")
+    model = tf.keras.models.load_model("model.h5")
     with open("midi_file_path.txt", "r") as f:
         midi_file_name = f.readline().strip() # Read the file name from the text document
     midi_file_path = "./mid/" + midi_file_name # Construct the full path by adding the folder path

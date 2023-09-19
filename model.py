@@ -41,4 +41,4 @@ if __name__ == "__main__":
     
     model.fit(features, labels, epochs=50, batch_size=32, verbose=1)
 
-    model.save("humanize_model.h5")  # Save the trained model
+    model.save("model.h5")  # Save the trained model
