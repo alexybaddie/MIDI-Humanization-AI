@@ -23,7 +23,7 @@ Install dependencies
 
 ### Edit the MIDI file path
 
-1. Place your MIDI file in the mid folder (you may find it easier to rename the file).
+1. Place your MIDI file in the `mid` folder (you may find it easier to rename the file).
 2. Open `midi_file_path.txt` in any text editor of your choice.
 3. Update the path with the name of your MIDI file (e.g., `midi.mid`).
 
