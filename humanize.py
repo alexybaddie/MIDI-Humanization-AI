@@ -4,10 +4,9 @@ import tensorflow as tf
 import random
 from data_processing import extract_features
 
+# Fine-tuning parameters
 PREDICTION_MULTIPLIER = 0.5
-DURATION_LIMIT_UPPER = 0.75 # 1.25
-MIN_DURATION_LIMIT = 0.5 / 8  # Duration of a 32nd note at 120 BPM
-MAX_DURATION_LIMIT = 0.5 * 8  # Duration of two quarter notes at 120 BPM
+DURATION_LIMIT = 1.25
 
 def convert(midi_data):
     new_midi = pretty_midi.PrettyMIDI(resolution=midi_data.resolution, initial_tempo=midi_data.get_tempo_changes()[1][0])
@@ -51,6 +50,8 @@ def convert(midi_data):
     
     return new_midi_120
 
+MIN_DURATION_LIMIT = 0.5 / 8  # Duration of a 32nd note at 120 BPM
+MAX_DURATION_LIMIT = 0.5 * 8  # Duration of two quarter notes at 120 BPM
 
 def humanize_midi(midi_file_path, model, n=32):
     # Load the MIDI data
@@ -79,31 +80,20 @@ def humanize_midi(midi_file_path, model, n=32):
         # Calculate the original duration and the predicted duration
         original_end_time = original_notes[i+n].end
         original_duration = original_end_time - next_note.start
-     #   predicted_duration = predicted_values[0][0] * PREDICTION_MULTIPLIER
 
         # Adjust the note's end time based on the predicted duration, but limit the adjustment 
         # to prevent the duration from becoming too short or too long compared to the original duration
-        
-     
         if original_duration > 0.5:  # If the original duration is longer than a quarter note at 120 BPM
             predicted_duration = max(min(predicted_values[0][0], MAX_DURATION_LIMIT), original_duration * 0.75)  # Set the predicted duration to be 75% of the original duration
         else:
-            predicted_duration = max(min(predicted_values[0][0] * PREDICTION_MULTIPLIER, original_duration * 1.25), original_duration * 0.5)
+            predicted_duration = max(min(predicted_values[0][0] * PREDICTION_MULTIPLIER, original_duration * DURATION_LIMIT), original_duration * 0.5)
             
         # Adding a small random variation to the predicted duration (between -5% and +5% of the predicted duration)
         random_variation = random.uniform(-0.25, 0)
         predicted_duration += predicted_duration * random_variation
         
-     #   new_duration = max(min(predicted_duration, original_duration * DURATION_LIMIT_UPPER), MIN_DURATION_LIMIT)
-        
         new_duration = max(min(predicted_duration, MAX_DURATION_LIMIT), MIN_DURATION_LIMIT)
         next_note.end = next_note.start + new_duration
-        
-     #   new_duration = max(min(predicted_duration, MAX_DURATION_LIMIT), MIN_DURATION_LIMIT)
-        
-     #   next_note.end = next_note.start + new_duration
-        
-     #   next_note.end = int(predicted_values[0][1])
 
         next_note.velocity = int(predicted_values[0][1])
 

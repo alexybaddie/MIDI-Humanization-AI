@@ -28,7 +28,6 @@ def extract_features(midi_file_path, n=32):
 
     for i in range(len(notes) - n):
         input_sequence = [(note.pitch, note.velocity, note.end - note.start) for note in notes[i:i+n]]
-    #    input_sequence = [(note.pitch, note.velocity, note.end - note.start, note.end - note.start) for note in notes[i:i+n]]
         next_note = notes[i+n]
         output_sequence = (next_note.end - next_note.start, next_note.velocity)
         

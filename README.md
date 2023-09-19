@@ -1,5 +1,5 @@
 # MIDI Humanization AI
-AI to humanize MIDI velocities and note length
+AI with note length and velocity prediction
 
 ## Setup the Environment
 
@@ -23,12 +23,17 @@ Install dependencies
 
 ### Edit the MIDI file path
 
-1. Put your midi file into the `mid` folder. (It can be easier renaming the file)
+1. Place your MIDI file in the mid folder (you may find it easier to rename the file).
 2. Open `midi_file_path.txt` in any text editor of your choice.
-3. Edit the midi file path to `./mid/` and then the name of your midi file, in the example it is `midi.mid`
+3. Update the path with the name of your MIDI file (e.g., `midi.mid`).
 
 > [!IMPORTANT]
-> The midi file needs to have the file extension `.mid` or `.midi`
+> Ensure your file has a `.mid` or `.midi` extension.
+
+> [!WARNING]
+> If the MIDI file contains longer notes, the program might retain them. You may need to 
+> adjust the note lengths manually afterwards to achieve the desired effect. This precaution 
+> helps preserve the melody.
 
 ### Start the humanization process
 
@@ -44,9 +49,7 @@ Install dependencies
 2. Play around with these values at the very top of the code.
 
 ```python
-PREDICTION_MULTIPLIER = 1.0
-DURATION_LIMIT_UPPER = 1.75
-DURATION_LIMIT_LOWER = 0.25
+# Fine-tuning parameters
+PREDICTION_MULTIPLIER = 0.5
+DURATION_LIMIT = 1.25
 ```
-
-3. I wouldn't recommend you go above `2.0` or anything below `0.25`, because you could get some weird results.
