@@ -1,10 +1,11 @@
 import numpy as np
 import tensorflow as tf
+from tensorflow.keras.callbacks import EarlyStopping
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Dense
 from data_processing import extract_features, extract_midi_paths_from_metadata
 
-def build_lstm_model(input_shape=(5, 3)):
+def build_lstm_model(input_shape=(32, 3)):
     """Creates and returns the LSTM-based humanization model."""
     model = Sequential([
         tf.keras.layers.InputLayer(input_shape=input_shape),
@@ -26,7 +27,7 @@ if __name__ == "__main__":
     midi_files = [BASE_DIR + path for path in midi_paths]  # Convert relative paths to full local paths
 
     # Extract sequences and corresponding next note's attributes from the dataset
-    data = [extract_features(midi_file, n=5) for midi_file in midi_files]
+    data = [extract_features(midi_file, n=32) for midi_file in midi_files]
     features, labels = zip(*[item for sublist in data for item in sublist])
 
     # Convert to numpy arrays
@@ -35,6 +36,9 @@ if __name__ == "__main__":
 
     # Train the model
     model = build_lstm_model()
-    model.fit(features, labels, epochs=20, batch_size=32, verbose=1)
+    
+    early_stopping = EarlyStopping(patience=5, restore_best_weights=True)
+    
+    model.fit(features, labels, epochs=50, batch_size=32, verbose=1)
 
     model.save("humanize_model.h5")  # Save the trained model

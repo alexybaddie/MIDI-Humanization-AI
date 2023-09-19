@@ -1,11 +1,13 @@
 import pretty_midi
 import numpy as np
 import tensorflow as tf
+import random
 from data_processing import extract_features
 
-PREDICTION_MULTIPLIER = 1.0
-DURATION_LIMIT_UPPER = 1.75
-DURATION_LIMIT_LOWER = 0.25
+PREDICTION_MULTIPLIER = 0.5
+DURATION_LIMIT_UPPER = 0.75 # 1.25
+MIN_DURATION_LIMIT = 0.5 / 8  # Duration of a 32nd note at 120 BPM
+MAX_DURATION_LIMIT = 0.5 * 8  # Duration of two quarter notes at 120 BPM
 
 def convert(midi_data):
     new_midi = pretty_midi.PrettyMIDI(resolution=midi_data.resolution, initial_tempo=midi_data.get_tempo_changes()[1][0])
@@ -48,10 +50,6 @@ def convert(midi_data):
     new_midi_120.instruments.append(new_single_track)
     
     return new_midi_120
-    
-   # new_midi.instruments.append(single_track)
-    
-  #  return new_midi
 
 
 def humanize_midi(midi_file_path, model, n=32):
@@ -71,6 +69,7 @@ def humanize_midi(midi_file_path, model, n=32):
     notes = midi_data.instruments[0].notes
 
     min_length = min(len(notes), len(original_notes))  # Find the minimum length
+    min_velocity = min(len(notes), len(original_notes))  # Find the minimum velocity
 
     for i in range(min_length - n - 1):  # Use the minimum length to set the loop range
         input_sequence = np.array([[(note.pitch, note.velocity, note.end - note.start) for note in notes[i:i+n]]])
@@ -80,22 +79,41 @@ def humanize_midi(midi_file_path, model, n=32):
         # Calculate the original duration and the predicted duration
         original_end_time = original_notes[i+n].end
         original_duration = original_end_time - next_note.start
-        predicted_duration = predicted_values[0][0] * PREDICTION_MULTIPLIER
+     #   predicted_duration = predicted_values[0][0] * PREDICTION_MULTIPLIER
 
         # Adjust the note's end time based on the predicted duration, but limit the adjustment 
         # to prevent the duration from becoming too short or too long compared to the original duration
-        new_duration = max(min(predicted_duration, original_duration * DURATION_LIMIT_UPPER), original_duration * DURATION_LIMIT_LOWER)
+        
+     
+        if original_duration > 0.5:  # If the original duration is longer than a quarter note at 120 BPM
+            predicted_duration = max(min(predicted_values[0][0], MAX_DURATION_LIMIT), original_duration * 0.75)  # Set the predicted duration to be 75% of the original duration
+        else:
+            predicted_duration = max(min(predicted_values[0][0] * PREDICTION_MULTIPLIER, original_duration * 1.25), original_duration * 0.5)
+            
+        # Adding a small random variation to the predicted duration (between -5% and +5% of the predicted duration)
+        random_variation = random.uniform(-0.25, 0)
+        predicted_duration += predicted_duration * random_variation
+        
+     #   new_duration = max(min(predicted_duration, original_duration * DURATION_LIMIT_UPPER), MIN_DURATION_LIMIT)
+        
+        new_duration = max(min(predicted_duration, MAX_DURATION_LIMIT), MIN_DURATION_LIMIT)
         next_note.end = next_note.start + new_duration
+        
+     #   new_duration = max(min(predicted_duration, MAX_DURATION_LIMIT), MIN_DURATION_LIMIT)
+        
+     #   next_note.end = next_note.start + new_duration
+        
+     #   next_note.end = int(predicted_values[0][1])
 
         next_note.velocity = int(predicted_values[0][1])
 
-    # ... (the ending part of the function remains the same)
     return midi_data
 
 
 if __name__ == "__main__":
     model = tf.keras.models.load_model("humanize_model.h5")
     with open("midi_file_path.txt", "r") as f:
-        midi_file_path = f.readline().strip() # Replace with your actual input MIDI file path
+        midi_file_name = f.readline().strip() # Read the file name from the text document
+    midi_file_path = "./mid/" + midi_file_name # Construct the full path by adding the folder path
     humanized_data = humanize_midi(midi_file_path, model)
     humanized_data.write("humanized_output.mid")

@@ -16,7 +16,7 @@ def extract_midi_paths_from_metadata():
     return midi_paths
 
 
-def extract_features(midi_file_path, n=5):
+def extract_features(midi_file_path, n=32):
     """Extracts sequences of notes and their corresponding next note's attributes from a given midi file."""
     midi_data = pretty_midi.PrettyMIDI(midi_file_path)
     if not midi_data.instruments:
@@ -27,8 +27,8 @@ def extract_features(midi_file_path, n=5):
     labels = []
 
     for i in range(len(notes) - n):
-    #    input_sequence = [(note.pitch, note.velocity, note.end - note.start) for note in notes[i:i+n]]
-        input_sequence = [(note.pitch, note.velocity, note.end - note.start, note.end - note.start) for note in notes[i:i+n]]
+        input_sequence = [(note.pitch, note.velocity, note.end - note.start) for note in notes[i:i+n]]
+    #    input_sequence = [(note.pitch, note.velocity, note.end - note.start, note.end - note.start) for note in notes[i:i+n]]
         next_note = notes[i+n]
         output_sequence = (next_note.end - next_note.start, next_note.velocity)
         
